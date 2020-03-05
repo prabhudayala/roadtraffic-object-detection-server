@@ -1,16 +1,13 @@
 import os
-from flask import Flask, request, jsonify, make_response, send_file
+from flask import Flask, request, jsonify, make_response, send_file, Response
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import eventlet
-import socketio
+# import socketio
 from services import services
 
 flaskapp = Flask(__name__)
 CORS(flaskapp)
-
-sio = socketio.Server(cors_allowed_origins='*')
-app = app = socketio.WSGIApp(sio, flaskapp)
 
 flaskapp.config['UPLOAD_FOLDER'] = './data/'
 flaskapp.secret_key = 'qwertyuiop'
@@ -38,29 +35,17 @@ def upload_video():
         return jsonify({'x': True})
 
 
-@sio.event
-def connect(sid, environ):
-    print('CONN:')
-    print('connect', sid)
+@flaskapp.route('/video_feed')
+def video_feed():
+    return Response(services.process_live(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
-@sio.on('message')
-def my_message(sid, data):
-    print('MESSAGE:')
-    print('message', data)
-
-
-@sio.on('stream')
-def my_stream(sid, data):
-    print('STREAM:')
-    sio.emit('replay', data)
-
-
-@sio.event
-def disconnect(sid):
-    print('disconnect', sid)
+@flaskapp.route('/stop_feed')
+def stop_feed():
+    services.stop_stream()
+    return Response()
 
 
 if __name__ == '__main__':
     print('Hello')
-    eventlet.wsgi.server(eventlet.listen(('', 5000)), app)
+    flaskapp.run(host="0.0.0.0", port=5000, debug=True)
